@@ -145,7 +145,7 @@ fn main() {
                     file_size,
                     RESET
                 );
-                writeln!(script_file, "rm -rf \"{}\"", entry.path().display()).unwrap();
+                writeln!(script_file, "rm \"{}\"", entry.path().display()).unwrap();
             }
         }
 
