@@ -1,22 +1,22 @@
 name: Rust CI/CD
+
 on:
   push:
     branches:
       - master
+
 jobs:
   build_and_test:
-    name: Build and Test
+    name: Rust project - latest
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain:
+          - stable
+          - beta
+          - nightly
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install Rust
-        uses: rust/actions/setup-rust@v1
-      - name: Install Cargo Wrapper
-        run: cargo install cargo-make --force
-      - name: Build Project
-        run: cargo make build
-      - name: Test Project
-        run: cargo make test
+      - uses: actions/checkout@v4
+      - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+      - run: cargo build --verbose
+      - run: cargo test --verbose

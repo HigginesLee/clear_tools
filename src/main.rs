@@ -27,12 +27,24 @@ fn main() {
         return;
     }
 
-    print!("请输入保存用户文件信息路径：");
+
+    let current_exe = std::env::current_exe().unwrap();
+    let current_parent_dir = current_exe.parent().unwrap();
+
+    print!("请输入保存用户文件信息路径({})：", current_parent_dir.join("student.json").to_str().unwrap());
     std::io::stdout().flush().unwrap();
     let mut save_path = String::new();
     std::io::stdin().read_line(&mut save_path).unwrap();
     save_path = save_path.trim().to_string();
 
+    if save_path.is_empty() {
+        // 获取当前编译程序目录下的student.json文件
+        save_path = current_parent_dir
+            .join("student.json")
+            .to_str()
+            .unwrap()
+            .to_string();
+    }
     if !std::path::Path::new(&save_path).exists() {
         println!("保存用户文件信息路径不存在: {}", save_path);
         return;
