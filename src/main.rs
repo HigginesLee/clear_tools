@@ -9,7 +9,7 @@ const RESET: &str = "\x1b[0m";
 
 fn main() {
     // 读取用户输入
-    print!("请输入需要清理的文件夹路径('/mnt/disk2/labs-tools/'): ");
+    print!("请输入需要清理的文件夹路径('/mnt/dolphin-fs/cc-labs-tools/labs/'): ");
     std::io::stdout().flush().unwrap();
     let mut tools_path = String::new();
     std::io::stdin().read_line(&mut tools_path).unwrap();
@@ -18,7 +18,7 @@ fn main() {
     tools_path = tools_path.trim().to_string();
 
     if tools_path.is_empty() {
-        tools_path = "/mnt/disk2/labs-tools/".to_string();
+        tools_path = "/mnt/dolphin-fs/cc-labs-tools/labs/".to_string();
     }
 
     // 检查文件路径是否存在
