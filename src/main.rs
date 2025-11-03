@@ -137,7 +137,6 @@ fn main() {
             if !entry.file_type().is_file() {
                 continue;
             }
-
             // 获取文件大小
             let metadata = match entry.metadata() {
                 Ok(m) => m,
@@ -149,6 +148,14 @@ fn main() {
 
             // 检查文件大小是否大于用户输入的限制
             let file_size = metadata.len() / 1024 / 1024;
+            // 获取文件名
+            let file_name = entry.file_name().to_string_lossy().to_lowercase();
+            
+            // 如果文件名包含 ipynb 或 canvas，跳过处理
+            if file_name.contains("ipynb") || file_name.contains("canvas") {
+                continue;
+            }
+            
             if file_size >= size_limit {
                 println!(
                     "{}发现大文件: {} - 大小：{}MB{}",
