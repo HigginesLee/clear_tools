@@ -1,9 +1,9 @@
+use clap::Parser;
+use serde::{Deserialize, Serialize};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 use walkdir::WalkDir;
-use clap::Parser;
-use serde::{Deserialize, Serialize};
 
 const RED: &str = "\x1b[31m";
 const GREEN: &str = "\x1b[32m";
@@ -28,7 +28,7 @@ const RESET: &str = "\x1b[0m";
 )]
 struct Args {
     /// 配置文件路径 (JSON格式)
-    /// 
+    ///
     /// 配置文件必须包含以下字段:
     ///   - users: 用户ID数组 (必填)
     ///   - tools_path: 清理目录路径 (可选)
@@ -56,14 +56,14 @@ struct Config {
     /// 需要清理的文件夹路径
     #[serde(default = "default_tools_path")]
     tools_path: String,
-    
+
     /// 用户列表
     users: Vec<String>,
-    
+
     /// 需要清理的文件大小限制(MB)
     #[serde(default = "default_size_limit")]
     size_limit: u64,
-    
+
     /// 是否需要删除common文件夹
     #[serde(default)]
     delete_common: bool,
@@ -79,7 +79,7 @@ fn default_size_limit() -> u64 {
 
 fn main() {
     let args = Args::parse();
-    
+
     // 读取配置文件
     let config_content = match fs::read_to_string(&args.config_file) {
         Ok(content) => content,
@@ -89,7 +89,7 @@ fn main() {
             return;
         }
     };
-    
+
     // 解析配置文件
     let config: Config = match serde_json::from_str(&config_content) {
         Ok(cfg) => cfg,
@@ -98,29 +98,35 @@ fn main() {
             return;
         }
     };
-    
+
     println!("{}配置信息:{}", GREEN, RESET);
     println!("  清理文件夹路径: {}", config.tools_path);
     println!("  用户数量: {}", config.users.len());
     println!("  文件大小限制: {}MB", config.size_limit);
-    println!("  删除common文件夹: {}", if config.delete_common { "是" } else { "否" });
+    println!(
+        "  删除common文件夹: {}",
+        if config.delete_common { "是" } else { "否" }
+    );
     println!();
-    
+
     // 检查文件路径是否存在
     if !Path::new(&config.tools_path).exists() {
-        println!("{}需要清理的文件夹路径不存在: {}{}", RED, config.tools_path, RESET);
+        println!(
+            "{}需要清理的文件夹路径不存在: {}{}",
+            RED, config.tools_path, RESET
+        );
         return;
     }
-    
+
     // 检查用户列表是否为空
     if config.users.is_empty() {
         println!("{}错误: 用户列表为空，请在配置文件中添加用户{}", RED, RESET);
         return;
     }
-    
+
     println!("{}找到 {} 个用户信息{}", GREEN, config.users.len(), RESET);
     println!();
-    
+
     // 创建shell脚本文件
     let script_path = "/tmp/clear_tools.sh";
     let mut script_file = OpenOptions::new()
@@ -129,46 +135,51 @@ fn main() {
         .truncate(true)
         .open(script_path)
         .unwrap();
-    
+
     // 写入脚本头部
     writeln!(script_file, "#!/bin/bash").unwrap();
     writeln!(script_file, "# 自动生成的清理脚本\n").unwrap();
-    
+
     let mut total_files_found = 0;
     let mut total_common_dirs = 0;
-    
+
     // 遍历所有用户
     for user in config.users {
         println!("正在处理用户 {} 的文件夹...", user);
-        
+
         // 构建用户目录路径
         let user_dir = Path::new(&config.tools_path).join(&user);
         if !user_dir.exists() {
             println!("  用户目录不存在: {}", user_dir.display());
             continue;
         }
-        
+
         // 处理 common 文件夹
         if config.delete_common {
             let common_dir = user_dir.join("common");
             if common_dir.exists() {
-                println!("  {}添加删除common文件夹命令: {}{}", GREEN, common_dir.display(), RESET);
+                println!(
+                    "  {}添加删除common文件夹命令: {}{}",
+                    GREEN,
+                    common_dir.display(),
+                    RESET
+                );
                 writeln!(script_file, "rm -rf \"{}\"", common_dir.display()).unwrap();
                 total_common_dirs += 1;
             }
         }
-        
+
         let user_jupyter_dir = user_dir.join("jupyter");
-        
+
         if !user_jupyter_dir.exists() {
             println!("  用户 {} 的jupyter目录不存在,跳过执行", user);
             continue;
         }
-        
+
         println!("  开始扫描目录: {}", user_jupyter_dir.display());
-        
+
         let mut user_files_found = 0;
-        
+
         // 遍历文件夹
         for entry in WalkDir::new(&user_jupyter_dir) {
             let entry = match entry {
@@ -178,11 +189,11 @@ fn main() {
                     continue;
                 }
             };
-            
+
             if !entry.file_type().is_file() {
                 continue;
             }
-            
+
             // 获取文件大小
             let metadata = match entry.metadata() {
                 Ok(m) => m,
@@ -191,17 +202,17 @@ fn main() {
                     continue;
                 }
             };
-            
+
             // 检查文件大小是否大于用户输入的限制
             let file_size = metadata.len() / 1024 / 1024;
             // 获取文件名
             let file_name = entry.file_name().to_string_lossy().to_lowercase();
-            
+
             // 如果文件名包含 ipynb 或 canvas，跳过处理
             if file_name.contains("ipynb") || file_name.contains("canvas") {
                 continue;
             }
-            
+
             if file_size >= config.size_limit {
                 println!(
                     "  {}发现大文件: {} - 大小：{}MB{}",
@@ -215,19 +226,25 @@ fn main() {
                 total_files_found += 1;
             }
         }
-        
-        println!("  用户 {} 的文件处理完成，找到 {} 个大文件", user, user_files_found);
+
+        println!(
+            "  用户 {} 的文件处理完成，找到 {} 个大文件",
+            user, user_files_found
+        );
         println!();
     }
-    
+
     // 修改脚本权限
     std::process::Command::new("chmod")
         .arg("+x")
         .arg(script_path)
         .output()
         .expect("Failed to chmod script file");
-    
-    println!("{}==================== 处理完成 ===================={}", GREEN, RESET);
+
+    println!(
+        "{}==================== 处理完成 ===================={}",
+        GREEN, RESET
+    );
     println!("总计找到 {} 个需要删除的大文件", total_files_found);
     if config.delete_common {
         println!("总计找到 {} 个common文件夹", total_common_dirs);

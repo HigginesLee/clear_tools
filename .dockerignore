@@ -1,0 +1,39 @@
+# Git files
+.git
+.gitignore
+.github
+
+# Build artifacts
+target/
+*.swp
+*.swo
+*~
+
+# Documentation
+*.md
+!README.md
+
+# Test files
+test.json
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+
+# CI/CD
+.github/workflows/
+
+# Config files (will be mounted)
+config.json
+student.json
+
+# Setup scripts
+setup.sh
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Cargo lock for libraries (keep for binaries)
+# Cargo.lock
