@@ -103,3 +103,87 @@ jobs:
 
       - name: Run cargo clippy
         run: cargo clippy -- -D warnings
+
+  auto_release:
+    name: Auto Release
+    needs: [build_and_test, lint]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Create archive for Linux
+        run: |
+          cd artifacts/clear_tools-ubuntu-latest
+          tar czf ../../clear_tools-linux-x86_64.tar.gz *
+          cd ../..
+
+      - name: Create archive for macOS
+        run: |
+          cd artifacts/clear_tools-macos-latest
+          tar czf ../../clear_tools-macos-x86_64.tar.gz *
+          cd ../..
+
+      - name: Create archive for Windows
+        run: |
+          cd artifacts/clear_tools-windows-latest
+          zip -r ../../clear_tools-windows-x86_64.zip *
+          cd ../..
+
+      - name: Get version from Cargo.toml
+        id: get_version
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Get commit info
+        id: commit_info
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          COMMIT_MSG=$(git log -1 --pretty=%B | head -1)
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "commit_msg=$COMMIT_MSG" >> $GITHUB_OUTPUT
+
+      - name: Create or Update Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}-dev-${{ steps.commit_info.outputs.short_sha }}
+          name: Development Build v${{ steps.get_version.outputs.version }} (${{ steps.commit_info.outputs.short_sha }})
+          body: |
+            ## 🚀 自动构建版本
+            
+            **版本**: v${{ steps.get_version.outputs.version }}-dev
+            **提交**: ${{ steps.commit_info.outputs.short_sha }}
+            **分支**: master
+            **提交信息**: ${{ steps.commit_info.outputs.commit_msg }}
+            
+            ### 📦 下载
+            - **Linux**: clear_tools-linux-x86_64.tar.gz
+            - **macOS**: clear_tools-macos-x86_64.tar.gz
+            - **Windows**: clear_tools-windows-x86_64.zip
+            
+            ### ⚠️ 注意
+            这是一个自动构建的开发版本，可能包含未经充分测试的功能。
+            生产环境请使用正式发布版本（不带 `-dev` 后缀）。
+            
+            ### 📝 更改日志
+            请查看提交历史以了解最新更改。
+          files: |
+            clear_tools-linux-x86_64.tar.gz
+            clear_tools-macos-x86_64.tar.gz
+            clear_tools-windows-x86_64.zip
+          draft: false
+          prerelease: true
