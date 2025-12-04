@@ -1,0 +1,6 @@
+{
+  "tools_path": "/mnt/dolphin-fs/cc-labs-tools/labs/",
+  "size_limit": 100,
+  "delete_common": true,
+  "users": ["user001", "user002", "user003", "123456", "789012"]
+}
