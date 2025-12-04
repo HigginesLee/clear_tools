@@ -10,10 +10,44 @@ const GREEN: &str = "\x1b[32m";
 const RESET: &str = "\x1b[0m";
 
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(
+    author,
+    version,
+    about = "清理用户文件夹中的大文件工具",
+    long_about = "清理用户文件夹中的大文件工具\n\n\
+    配置文件格式 (JSON):\n\
+    {\n  \
+      \"tools_path\": \"/mnt/dolphin-fs/cc-labs-tools/labs/\",  // 需要清理的文件夹路径 (可选，默认值如示例)\n  \
+      \"users\": [\"123456\", \"789012\", \"345678\"],           // 用户ID列表 (必填)\n  \
+      \"size_limit\": 50,                                      // 文件大小限制(MB) (可选，默认50)\n  \
+      \"delete_common\": false                                 // 是否删除common文件夹 (可选，默认false)\n\
+    }\n\n\
+    示例:\n  \
+    ./clear_tools -f config.json\n  \
+    ./clear_tools --config my_config.json"
+)]
 struct Args {
-    /// 配置文件路径
-    #[arg(short = 'f', long = "config", value_name = "FILE")]
+    /// 配置文件路径 (JSON格式)
+    /// 
+    /// 配置文件必须包含以下字段:
+    ///   - users: 用户ID数组 (必填)
+    ///   - tools_path: 清理目录路径 (可选)
+    ///   - size_limit: 文件大小限制MB (可选)
+    ///   - delete_common: 是否删除common文件夹 (可选)
+    #[arg(
+        short = 'f',
+        long = "config",
+        value_name = "FILE",
+        help = "配置文件路径",
+        long_help = "配置文件路径 (JSON格式)\n\n\
+        配置文件示例:\n\
+        {\n  \
+          \"tools_path\": \"/mnt/dolphin-fs/cc-labs-tools/labs/\",\n  \
+          \"users\": [\"123456\", \"789012\"],\n  \
+          \"size_limit\": 50,\n  \
+          \"delete_common\": false\n\
+        }"
+    )]
     config_file: String,
 }
 
