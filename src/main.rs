@@ -67,6 +67,8 @@ struct Config {
     /// 是否需要删除common文件夹
     #[serde(default)]
     delete_common: bool,
+    
+
 }
 
 fn default_tools_path() -> String {
@@ -75,6 +77,80 @@ fn default_tools_path() -> String {
 
 fn default_size_limit() -> u64 {
     50
+}
+
+/// 处理指定目录下的大文件
+/// 
+/// # 参数
+/// * `dir_path` - 要处理的目录路径
+/// * `dir_name` - 目录名称（用于日志输出）
+/// * `size_limit` - 文件大小限制（MB）
+/// * `script_file` - 用于写入删除命令的脚本文件
+/// 
+/// # 返回值
+/// 返回找到的大文件数量
+fn process_directory(
+    dir_path: &Path,
+    dir_name: &str,
+    size_limit: u64,
+    script_file: &mut std::fs::File,
+) -> usize {
+    let mut files_found = 0;
+
+    println!("  开始扫描{}目录: {}", dir_name, dir_path.display());
+
+    // 遍历文件夹
+    for entry in WalkDir::new(dir_path) {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(e) => {
+                println!("  {}访问文件失败: {}{}", RED, e, RESET);
+                continue;
+            }
+        };
+
+        if !entry.file_type().is_file() {
+            continue;
+        }
+
+        // 获取文件大小
+        let metadata = match entry.metadata() {
+            Ok(m) => m,
+            Err(e) => {
+                println!("  {}获取文件元数据失败: {}{}", RED, e, RESET);
+                continue;
+            }
+        };
+
+        // 检查文件大小是否大于用户输入的限制
+        let file_size = metadata.len() / 1024 / 1024;
+        // 获取文件名
+        let file_name = entry.file_name().to_string_lossy().to_lowercase();
+
+        // 如果文件名包含 ipynb 或 canvas，跳过处理
+        if file_name.contains("ipynb") || file_name.contains("canvas") {
+            continue;
+        }
+
+        if file_size >= size_limit {
+            println!(
+                "  {}发现大文件: {} - 大小：{}MB{}",
+                RED,
+                entry.path().display(),
+                file_size,
+                RESET
+            );
+            writeln!(script_file, "rm \"{}\"", entry.path().display()).unwrap();
+            files_found += 1;
+        }
+    }
+
+    println!(
+        "  {}目录处理完成，找到 {} 个大文件",
+        dir_name, files_found
+    );
+
+    files_found
 }
 
 fn main() {
@@ -169,67 +245,37 @@ fn main() {
             }
         }
 
+        // 处理 jupyter 文件夹
         let user_jupyter_dir = user_dir.join("jupyter");
-
-        if !user_jupyter_dir.exists() {
-            println!("  用户 {} 的jupyter目录不存在,跳过执行", user);
-            continue;
+        if user_jupyter_dir.exists() {
+            let files_found = process_directory(
+                &user_jupyter_dir,
+                "jupyter",
+                config.size_limit,
+                &mut script_file,
+            );
+            total_files_found += files_found;
+        } else {
+            println!("  用户 {} 的jupyter目录不存在，跳过", user);
         }
 
-        println!("  开始扫描目录: {}", user_jupyter_dir.display());
-
-        let mut user_files_found = 0;
-
-        // 遍历文件夹
-        for entry in WalkDir::new(&user_jupyter_dir) {
-            let entry = match entry {
-                Ok(e) => e,
-                Err(e) => {
-                    println!("  {}访问文件失败: {}{}", RED, e, RESET);
-                    continue;
-                }
-            };
-
-            if !entry.file_type().is_file() {
-                continue;
-            }
-
-            // 获取文件大小
-            let metadata = match entry.metadata() {
-                Ok(m) => m,
-                Err(e) => {
-                    println!("  {}获取文件元数据失败: {}{}", RED, e, RESET);
-                    continue;
-                }
-            };
-
-            // 检查文件大小是否大于用户输入的限制
-            let file_size = metadata.len() / 1024 / 1024;
-            // 获取文件名
-            let file_name = entry.file_name().to_string_lossy().to_lowercase();
-
-            // 如果文件名包含 ipynb 或 canvas，跳过处理
-            if file_name.contains("ipynb") || file_name.contains("canvas") {
-                continue;
-            }
-
-            if file_size >= config.size_limit {
-                println!(
-                    "  {}发现大文件: {} - 大小：{}MB{}",
-                    RED,
-                    entry.path().display(),
-                    file_size,
-                    RESET
-                );
-                writeln!(script_file, "rm \"{}\"", entry.path().display()).unwrap();
-                user_files_found += 1;
-                total_files_found += 1;
-            }
+        // 处理 dify 文件夹
+        let user_dify_dir = user_dir.join("dify");
+        if user_dify_dir.exists() {
+            let files_found = process_directory(
+                &user_dify_dir,
+                "dify",
+                config.size_limit,
+                &mut script_file,
+            );
+            total_files_found += files_found;
+        } else {
+            println!("  用户 {} 的dify目录不存在，跳过", user);
         }
 
         println!(
-            "  用户 {} 的文件处理完成，找到 {} 个大文件",
-            user, user_files_found
+            "  用户 {} 的文件处理完成",
+            user
         );
         println!();
     }
